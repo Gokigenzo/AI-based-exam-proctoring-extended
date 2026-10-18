@@ -8,7 +8,8 @@ from uuid import UUID
 
 from fastapi import FastAPI, Depends, HTTPException, Header, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from html import escape
 from sqlalchemy import select, or_, text
 from sqlalchemy.exc import IntegrityError
 
@@ -108,6 +109,12 @@ def create_app(config=None):
         if not row or row.session_id != str(session_id):
             raise HTTPException(400, "Bằng chứng/tham chiếu khác phiên thi")
         return row
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    def index():
+        web_url = config.allowed_origins[0] if config.allowed_origins else "http://127.0.0.1:3000"
+        local_link = '<li><a href="http://127.0.0.1:8765">Giao diện máy trạm camera (8765)</a></li>' if config.env != "production" else ""
+        return f'''<!doctype html><html lang="vi"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ExamWatch API</title><body style="font-family:Segoe UI,sans-serif;max-width:700px;margin:60px auto;padding:24px;color:#163a40"><h1>ExamWatch API đang hoạt động</h1><p>Cổng này phục vụ API. Mở giao diện tại các liên kết dưới đây sau khi khởi động ứng dụng:</p><ul><li><a href="{escape(web_url, quote=True)}">Web giám thị (3000)</a></li>{local_link}<li><a href="/docs">Tài liệu API</a></li></ul><p>Trên Windows, chạy <b>Start ExamWatch Demo.cmd</b> ở thư mục dự án để mở cả hai giao diện. Camera chỉ thu khi bạn bấm Bắt đầu phiên.</p></body></html>'''
 
     @app.get("/healthz")
     def health(db=Depends(connection)):

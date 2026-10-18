@@ -1,5 +1,11 @@
 # Chạy ExamWatch trên Windows
 
+## Mở cả hai giao diện trên máy có mã nguồn
+
+Nhấp đúp **Start ExamWatch Demo.cmd** ở thư mục gốc dự án. Launcher tự mở API và hai giao diện: web giám thị `http://127.0.0.1:3000`, điều khiển camera `http://127.0.0.1:8765`. Camera không tự thu. Web yêu cầu Node.js ≥22 và dependencies đã cài bằng `npm.cmd ci` trong thư mục `web`.
+
+PowerShell có thể chặn `npm.ps1`: dùng `npm.cmd run dev` thay vì `npm run dev`. Không cần nới Execution Policy. API cổng 8000 không phải giao diện giám thị; trang `/` có liên kết chỉ dẫn. Log khởi động ở `data/startup/`.
+
 ## Người dùng bộ portable
 
 1. Chép **toàn bộ** thư mục `ExamWatch` vào máy Windows 10/11 x64; không chạy từ bên trong file ZIP.

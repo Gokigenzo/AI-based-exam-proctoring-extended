@@ -14,6 +14,10 @@ Hệ thống quan sát phòng thi chạy AI tại máy Windows, đồng bộ b�
 
 ## Chạy demo local không cần camera
 
+Trên máy đã cài dependencies, nhấp đúp **Start ExamWatch Demo.cmd** ở thư mục gốc để mở API, web giám thị (3000) và giao diện camera (8765). Không cần đổi Execution Policy của Windows; camera vẫn dừng cho đến khi bấm Bắt đầu phiên. Cổng 8000 là API và có trang chỉ dẫn tới hai giao diện.
+
+Nếu khởi động lỗi, xem `data/startup/api.log`, `web.log`, `local.log`. Có thể chạy lại launcher; dịch vụ đang hoạt động được giữ nguyên.
+
 Python 3.11–3.12 x64, Node ≥22 và `uv` dành cho môi trường phát triển:
 
 ```powershell
@@ -26,10 +30,10 @@ uv sync --frozen --extra local --extra dev
 ```powershell
 .venv/Scripts/python.exe scripts/seed_demo.py
 cd web
-npm ci
+npm.cmd ci
 $env:NEXT_PUBLIC_DEMO_MODE='true'
 $env:NEXT_PUBLIC_API_URL='http://127.0.0.1:8000'
-npm run dev
+npm.cmd run dev
 ```
 
 Mở `http://127.0.0.1:3000` → **Chế độ demo local** → nhập `examwatch-local-demo` và Enter. Dữ liệu, ảnh và âm thanh trong demo đều được đánh dấu giả lập. Không bật DEMO_MODE khi deploy cloud.
@@ -50,9 +54,9 @@ Mở giao diện local, chọn thư mục `models`, kiểm tra camera, vẽ vùn
 .venv/Scripts/python.exe -m pytest -q --basetemp .cache/pytest
 .venv/Scripts/python.exe scripts/check_models.py --root models
 cd web
-npm run typecheck
-npm run build
-npm audit
+npm.cmd run typecheck
+npm.cmd run build
+npm.cmd audit
 ```
 
 `tests/rls.sql` kiểm tra quyền thực trên Supabase và rollback dữ liệu thử. Các tests Python bao gồm quyền chéo phòng, thu hồi thiết bị, idempotency, upload checksum, chỉnh bản chép, retention, retry outbox, tracking mơ hồ và máy trạng thái.
