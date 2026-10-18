@@ -46,3 +46,7 @@ Bản portable chứa runtime Python riêng và các dependencies trong lockfile
 - **Phiên âm chậm:** dùng PhoWhisper-tiny sau khi tải trước bằng `--include phowhisper-tiny`; đổi cấu hình khi đã dừng phiên.
 
 Các khoảng cho phép phát biểu tính bằng giây từ đầu ca, ví dụ `0-60, 1800-1860`. Toàn bộ đoạn nói nằm trong khoảng được phép sẽ không tạo cảnh báo; vẫn lưu âm thanh và lịch sử.
+
+### Một web cho giám thị và camera
+
+Mở http://127.0.0.1:3000/, bấm **Mở giao diện giám thị demo →**, rồi chọn tab **Camera tại máy**. Bấm **Kiểm tra camera trước ca** để chụp ảnh xem trước; bấm **Bắt đầu phiên** để thu liên tục và phân tích. **Hồ sơ giám thị** chứa lịch sử sự kiện và câu nói. Tab camera chỉ xuất hiện khi web chạy trên localhost; dịch vụ máy trạm cổng 8765 vẫn cần chạy. Launcher mới mở một trang web duy nhất.

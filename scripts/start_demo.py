@@ -89,11 +89,10 @@ def main():
     # Invoke Node directly: no npm.ps1, execution-policy changes, or shell quoting.
     service("Supervisor web", 3000, "/", "web", [node, str(next_entry), "dev", "--hostname", "127.0.0.1", "--port", "3000"], ROOT / "web", env)
     service("Camera controls (capture stopped)", 8765, "/status", "local", [sys.executable, "-c", "from examwatch.local.app import run; run()"], ROOT, env)
-    print("Demo login: open 'Che do demo local', enter examwatch-local-demo and press Enter.")
+    print("Open the supervisor web, click the demo button, then choose Camera tai may.")
     print("Camera stays stopped until you press Start session in the local controls.")
     if not args.no_browser:
         webbrowser.open("http://127.0.0.1:3000")
-        webbrowser.open("http://127.0.0.1:8765")
 
 
 if __name__ == "__main__":
