@@ -14,7 +14,7 @@ Hệ thống quan sát phòng thi chạy AI tại máy Windows, đồng bộ b�
 
 ## Chạy demo local không cần camera
 
-Python 3.11–3.12 x64, Node ≥20.9 và `uv` dành cho môi trường phát triển:
+Python 3.11–3.12 x64, Node ≥22 và `uv` dành cho môi trường phát triển:
 
 ```powershell
 uv sync --frozen --extra local --extra dev

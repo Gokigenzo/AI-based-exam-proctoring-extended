@@ -11,6 +11,8 @@ Ngày 18/10/2026, trên máy phát triển Windows hiện tại.
 - Model smoke test: MediaPipe, FER+/YuNet, PhoWhisper-base, Silero VAD nạp thành công offline; khung trống không có pose/mặt, VAD không coi im lặng là tiếng nói. Đã sửa đường dẫn tiếng Việt bằng nạp model từ bộ nhớ cho MediaPipe/YuNet.
 - Web production build và TypeScript đạt. Dependencies web Next.js 16.4.2/React 19.3.1; npm audit sau cập nhật báo 0 vulnerabilities.
 - Browser QA với dữ liệu giả lập: đăng nhập demo, lọc/danh sách sự kiện, mở ảnh ký URL, lưu thẩm tra thấy audit, tải WAV giải mã thành công (duration 1 giây, readyState 4, không lỗi), chỉnh bản chép và mở lại bản gốc đều hoạt động.
+- Đã tạo bộ portable Windows cùng ZIP khoảng 1,1 GB, có Python 3.12.10 riêng, dependencies khóa phiên bản và cả PhoWhisper-base/tiny. Runtime phân phối đã kiểm tra imports, checksum model, suy luận khung trống và giao diện localhost; file nguồn trong portable khớp workspace. Chưa coi đây là kiểm thử trên máy Windows sạch.
+- PhoWhisper đã hoàn tất một lượt giải mã thực trên WAV tổng hợp để kiểm tra đường đi inference. WAV này không phải lời nói và không dùng để tính WER/CER.
 
 Ảnh kiểm chứng và báo cáo JSON nằm trong `deliverables/verification/`.
 
