@@ -1,0 +1,6 @@
+{
+  "input": "synthetic 1-second sine wave; not speech, not accuracy data",
+  "pipeline_completed": true,
+  "decode_seconds": 1.8909999999996217,
+  "output": "người."
+}

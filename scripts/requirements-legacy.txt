@@ -1,0 +1,5 @@
+# Dedicated Python 3.8 environment; do not install into the capture application.
+numpy==1.23.5
+mxnet==1.7.0.post2
+onnx==1.10.2
+protobuf==3.20.3

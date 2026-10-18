@@ -1,0 +1,21 @@
+{
+  "pose": {
+    "loaded": true,
+    "load_seconds": 1.719,
+    "blank_frame_people": 0
+  },
+  "fer": {
+    "loaded": true,
+    "load_seconds": 0.219,
+    "blank_frame_faces": 0
+  },
+  "asr": {
+    "loaded": true,
+    "load_seconds": 20.406
+  },
+  "vad": {
+    "loaded": true,
+    "load_seconds": 0.813,
+    "silence_is_speech": false
+  }
+}

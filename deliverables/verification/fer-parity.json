@@ -1,0 +1,7 @@
+{
+  "samples": 100,
+  "label_agreement": 1.0,
+  "max_probability_error": 2.682209014892578e-07,
+  "passed": true,
+  "fixtures_sha256": "e8cbdce8aa3b7676a2e52dd2ca5eca165cb0f827de364d1672f63964c84e6bef"
+}

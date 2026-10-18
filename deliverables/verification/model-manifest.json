@@ -1,0 +1,63 @@
+{
+  "pose": {
+    "path": "pose_landmarker_lite.task",
+    "version": "mediapipe-pose-lite-float16-v1",
+    "url": "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+    "sha256": "59929e1d1ee95287735ddd833b19cf4ac46d29bc7afddbbf6753c459690d574a"
+  },
+  "yunet": {
+    "path": "face_detection_yunet_2023mar.onnx",
+    "version": "opencv-yunet-2023mar",
+    "url": "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx",
+    "sha256": "8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4"
+  },
+  "phowhisper-base": {
+    "path": "phowhisper-base",
+    "version": "vinai/PhoWhisper-base@7ebdb9e88f5cc5271fb88f4d642c82ff9388650e",
+    "revision": "7ebdb9e88f5cc5271fb88f4d642c82ff9388650e",
+    "sha256": "0512e98d37cb0e7d057aefcea33014332ae6a45ddcac0bd9ff21521866a86620"
+  },
+  "fer_params": {
+    "path": "fer-0000.params",
+    "version": "TalkAI-FER+-VGG13",
+    "url": "https://s3.amazonaws.com/mxnet-demo-models/models/fer/fer-0000.params",
+    "sha256": "d04973fd16dad1e0437e42aef83836e4334e23c18414a3f3cb739dee62533789"
+  },
+  "fer_symbol": {
+    "path": "fer-symbol.json",
+    "version": "TalkAI-FER+-VGG13",
+    "url": "https://s3.amazonaws.com/mxnet-demo-models/models/fer/fer-symbol.json",
+    "sha256": "ffc51368e90e9dde4134956168b323230651a0d866cec7f7bd2dcde4f9615977"
+  },
+  "fer": {
+    "path": "fer.onnx",
+    "sha256": "e268dd17624acba6475abc3198277b6e4275e18af8d0f99a48b488a5e9a72c9c",
+    "labels": [
+      "neutral",
+      "happiness",
+      "surprise",
+      "sadness",
+      "anger",
+      "disgust",
+      "fear",
+      "contempt"
+    ],
+    "version": "TalkAI-FER+-VGG13-onnx",
+    "output": "logits",
+    "parity_verified": true,
+    "source_params_sha256": "d04973fd16dad1e0437e42aef83836e4334e23c18414a3f3cb739dee62533789",
+    "parity_report": {
+      "samples": 100,
+      "label_agreement": 1.0,
+      "max_probability_error": 2.682209014892578e-07,
+      "passed": true,
+      "fixtures_sha256": "e8cbdce8aa3b7676a2e52dd2ca5eca165cb0f827de364d1672f63964c84e6bef"
+    }
+  },
+  "phowhisper-tiny": {
+    "path": "phowhisper-tiny",
+    "version": "vinai/PhoWhisper-tiny@cc51d32be916efebde04ff549854fa1741cb5c02",
+    "revision": "cc51d32be916efebde04ff549854fa1741cb5c02",
+    "sha256": "ed9c1f60ec67d06d7d2f61ccf68ac58f9249db1192733ba53b1d5eb1f34ee152"
+  }
+}

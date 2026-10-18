@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: examwatch-api
+    runtime: python
+    plan: free
+    region: singapore
+    buildCommand: pip install uv==0.9.3 && uv sync --frozen --no-dev
+    startCommand: uv run --frozen --no-dev examwatch-api
+    healthCheckPath: /healthz
+    autoDeployTrigger: off
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.10
+      - key: EXAMWATCH_ENV
+        value: production
+      - key: EXAMWATCH_DATABASE_URL
+        sync: false
+      - key: EXAMWATCH_SUPABASE_URL
+        value: https://vsjgnaibivncznmpnrzw.supabase.co
+      - key: EXAMWATCH_SUPABASE_KEY
+        sync: false
+      - key: EXAMWATCH_SIGNING_SECRET
+        generateValue: true
+      - key: EXAMWATCH_ALLOWED_ORIGINS
+        sync: false
