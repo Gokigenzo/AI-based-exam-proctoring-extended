@@ -1,71 +1,73 @@
-# ExamWatch — F08 / F09 / F10
+# ExamWatch offline v2
 
-Hệ thống quan sát phòng thi chạy AI tại máy Windows, đồng bộ bằng chứng lên web để giám thị xem lại. Mã track chỉ dùng trong phiên; không nhận dạng danh tính, không tự kết luận gian lận hoặc lo lắng.
+Đây là mã nguồn ứng dụng trong gói v2 cập nhật 04/11/2026, đưa vào repo ngày 05/11/2026. `V2_SOURCE.json` lưu hash gốc của runtime/giao diện portable và hash chuẩn hóa LF để kiểm tra sau Git checkout, cùng hash ZIP đã đối chiếu. Chạy `python scripts/verify_v2_source.py` để đối chiếu snapshot. Việc sửa source sau này có thể làm hash khác; cập nhật manifest khi tạo phiên bản tiếp theo.
 
-## Thành phần đã có
+## Chuẩn bị và chạy
 
-- **F08:** YuNet → ghép mặt với track → TalkAI FER+ ONNX → cửa sổ thời gian. Checkpoint gốc đã tải, chuyển đổi và đối chiếu số học với MXNet.
-- **F09:** microphone → resample mono 16 kHz → Silero VAD → lưu WAV → worker PhoWhisper CPU → bản chép gốc/bản chỉnh lý.
-- **F10:** MediaPipe 33 điểm → Kalman/Hungarian → baseline vùng ghế → hình học/máy trạng thái và cooldown.
-- **Local:** preview localhost, SQLite outbox, ring buffer, ảnh/clip H.264, retry khi mất mạng, Credential Manager.
-- **API:** FastAPI, quyền phòng/thiết bị, UUID chống trùng, signed URLs, xác minh checksum và retention.
-- **Web:** Next.js, Supabase Auth, bộ lọc, xem/nghe bằng chứng, thẩm tra, chỉnh bản chép, quản lý token thiết bị.
-- **Cloud:** Supabase project và schema/RLS/private bucket đã tạo. Render/Vercel có cấu hình triển khai; cần cấu hình secret production trước khi chạy API cloud.
-
-## Chạy demo local không cần camera
-
-Trên máy đã cài dependencies, nhấp đúp **Start ExamWatch Demo.cmd** ở thư mục gốc để mở API, web giám thị (3000) và giao diện camera (8765). Không cần đổi Execution Policy của Windows; camera vẫn dừng cho đến khi bấm Bắt đầu phiên. Cổng 8000 là API và có trang chỉ dẫn tới hai giao diện.
-
-Nếu khởi động lỗi, xem `data/startup/api.log`, `web.log`, `local.log`. Có thể chạy lại launcher; dịch vụ đang hoạt động được giữ nguyên.
-
-Python 3.11–3.12 x64, Node ≥22 và `uv` dành cho môi trường phát triển:
+Windows x64, Python 3.12 x64, camera/micro và Edge/Chrome. Từ thư mục này:
 
 ```powershell
-uv sync --frozen --extra local --extra dev
-.venv/Scripts/python.exe scripts/demo_server.py
+powershell -NoProfile -ExecutionPolicy Bypass -File .\prepare.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
 ```
 
-Ở terminal khác:
+Lần prepare cần mạng để cài thư viện và tải mô hình. Sau đó web chạy offline tại http://127.0.0.1:8000/. Thư mục hiện tại của shell không ảnh hưởng: script tự chuyển về thư mục của nó. CMD cũng chạy được hai lệnh trên.
 
-```powershell
-.venv/Scripts/python.exe scripts/seed_demo.py
-cd web
-npm.cmd ci
-$env:NEXT_PUBLIC_DEMO_MODE='true'
-$env:NEXT_PUBLIC_API_URL='http://127.0.0.1:8000'
-npm.cmd run dev
-```
+Model: YuNet, SFace, Emotion ONNX, MediaPipe Pose Lite, Zipformer 30M nguyên mẫu INT8. Chuẩn bị không cài Torch/CUDA hay dataset. Không cần Node.js để chạy web; Node 22 chỉ dùng chạy test JavaScript. Không ép cài dependencies từ pyproject/uv.lock ở thư mục cha.
 
-Mở `http://127.0.0.1:3000` → **Chế độ demo local** → nhập `examwatch-local-demo` và Enter. Dữ liệu, ảnh và âm thanh trong demo đều được đánh dấu giả lập. Không bật DEMO_MODE khi deploy cloud.
+## Nghiệp vụ
 
-## Chạy camera và AI
+- Đăng ký danh tính rồi theo dõi tối đa 3 người. Nhận diện mơ hồ hiển thị chưa xác định.
+- Hiệu chuẩn ngồi trong mỗi phiên. Tracking giữ baseline qua mất mặt ngắn; góc bụng cần hiệu chuẩn khi hông bị che.
+- Nhổm dậy: chọn thời gian 1–300 giây. Tay vượt 45 độ gắn cờ, tăng thêm 5 độ thì tạo cảnh báo. Nghiêng thân từ 20 độ giữ 2 giây hoặc tăng thêm 5 độ thì tạo cảnh báo.
+- Các cảnh báo tư thế lưu WebM khoảng 10 giây trước và 5 giây sau, không tiếng; thiếu dữ liệu đầu/cuối thì clip ngắn hơn. Cảm xúc tiêu cực kéo dài lưu ảnh. Không tự kết luận gian lận.
+- Micro chép lời Zipformer vào phiên. Camera hiển thị FPS AI thực đo; trần gửi 20 Hz không cam kết 20 FPS trên mọi máy.
 
-```powershell
-.venv/Scripts/python.exe scripts/prepare_models.py --root models
-# Chuyển FER+ một lần theo docs/MODELS.md nếu chưa có ONNX đã đạt parity.
-.venv/Scripts/python.exe scripts/launcher.py
-```
-
-Mở giao diện local, chọn thư mục `models`, kiểm tra camera, vẽ vùng ghế, lưu rồi bắt đầu. Token thiết bị lấy qua web; demo API cũng cho phép đăng ký thiết bị bằng token demo. Không dùng token đăng nhập giám thị thay token thiết bị.
+Mã nguồn lưu dữ liệu tại `data/` trong thư mục này; portable lưu tại `%LOCALAPPDATA%\ExamWatch\data`. Không chạy hai server trên cùng một thư mục dữ liệu. Ctrl+C để dừng server.
 
 ## Kiểm thử
 
 ```powershell
-.venv/Scripts/python.exe -m pytest -q --basetemp .cache/pytest
-.venv/Scripts/python.exe scripts/check_models.py --root models
-cd web
-npm.cmd run typecheck
-npm.cmd run build
-npm.cmd audit
+.\.venv\Scripts\python.exe -m pip install -r requirements-dev.txt
+.\.venv\Scripts\python.exe -m pytest -q --basetemp=.pytest-tmp
+node --test tests/test_audio_worklet.cjs tests/test_frame_pair.cjs tests/test_mic_check.cjs
 ```
 
-`tests/rls.sql` kiểm tra quyền thực trên Supabase và rollback dữ liệu thử. Các tests Python bao gồm quyền chéo phòng, thu hồi thiết bị, idempotency, upload checksum, chỉnh bản chép, retention, retry outbox, tracking mơ hồ và máy trạng thái.
+Unit/API tests dùng fixture hoặc dữ liệu tổng hợp, không cần tải trọng số, không truy cập camera/micro thật. Xem CONTRIBUTING.md ở gốc repo để hiểu phạm vi kiểm chứng.
 
-## Tài liệu
+## Build Windows
 
-- [Cài đặt/chạy Windows](docs/WINDOWS.md)
-- [Model, preprocessing và kiểm chứng ONNX](docs/MODELS.md)
-- [Triển khai Supabase / Render / Vercel](docs/DEPLOYMENT.md)
-- [Kết quả kiểm chứng và phần chưa nghiệm thu](docs/VERIFICATION.md)
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File packaging/windows/build_v2.ps1
+.\.venv\Scripts\python.exe packaging/windows/archive_v1.py --version v2
+.\.venv\Scripts\python.exe packaging/windows/verify_v2_zip.py
+```
 
-Bản demo chưa được nghiệm thu 90 phút với webcam/microphone thật hoặc trên máy Windows sạch. Không suy rộng kết quả số học/unit test thành độ chính xác nhận diện trong phòng thi thực tế.
+Build cần `.venv` đã prepare, model nguồn, Internet và compiler C# .NET Framework x64. Builder từ chối ghi đè `release/v2`; giữ bản cũ rồi dùng thư mục checkout mới nếu cần dựng lại. Xem `packaging/windows/BUILD_V2.md`.
+
+## Mã nguồn chính
+
+- `examwatch/vision.py`, `tracking.py`: model ảnh, ghép track và cache hiệu chuẩn.
+- `rules.py`: góc tay, gốc bụng, smoothing và điều kiện thời gian.
+- `runtime.py`: vòng đời phiên, điều phối camera/STT và cảnh báo.
+- `clips.py`, `store.py`: video vòng đệm và SQLite.
+- `speech.py`: Zipformer và nhánh Whisper tùy chọn.
+- `web/`: HTML/CSS/JS thu camera/micro và dashboard cùng origin.
+- `tests/`: regression tests; `scripts/`: chuẩn bị model, kiểm tra và huấn luyện tùy chọn.
+
+Không có model, dữ liệu người dùng hay dataset trong Git. Giữ license/attribution tại `licenses/` và `THIRD_PARTY_NOTICES.md`; model có điều kiện sử dụng riêng, trong đó Zipformer là CC-BY-NC-ND-4.0.
+
+## Thay đổi cấu trúc repository
+
+Repo GitHub `Gokigenzo/AI-based-exam-proctoring-extended` hiện dùng cấu trúc v2 ngay ở thư mục gốc. Các lệnh `uv sync`, `scripts/demo_server.py`, Next.js cổng 3000 và Supabase trước đây không còn là cách chạy ứng dụng chính.
+
+```cmd
+git clone https://github.com/Gokigenzo/AI-based-exam-proctoring-extended.git
+cd AI-based-exam-proctoring-extended
+powershell -NoProfile -ExecutionPolicy Bypass -File .\prepare.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File .\start.ps1
+```
+
+Hoặc nhấp đúp `Start ExamWatch V2.cmd` sau khi chuẩn bị. Web chính phục vụ tại cổng 8000, cùng giao diện bản portable. Mã API/Next.js/Supabase trước đây được lưu trong `legacy/cloud/`, không chạy song song và không đồng bộ cloud trong ứng dụng v2. Hướng dẫn lưu trữ cũ tại `legacy/cloud/README.md` có đường dẫn/lệnh theo cấu trúc cũ, chỉ phục vụ tham khảo; không dùng để khởi động v2.
+
+Nếu đã có checkout cũ, nên clone vào thư mục mới thay vì tái sử dụng `.venv`, `node_modules`, `.env` hoặc `data` của cloud. Không xóa các dữ liệu cũ nếu chưa sao lưu. Bản v2 từ mã nguồn và portable dùng hai vị trí dữ liệu khác nhau như mô tả ở trên.

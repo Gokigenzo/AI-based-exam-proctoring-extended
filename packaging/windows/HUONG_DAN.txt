@@ -1,0 +1,51 @@
+EXAMWATCH v1 — WINDOWS X64
+
+1. Giải nén toàn bộ thư mục v1 vào ổ cứng. Không chạy trực tiếp trong ZIP.
+2. Bấm ExamWatch.exe. Cửa sổ launcher nạp model rồi mở dashboard.
+   Không cần cài Python, CUDA hoặc tải thêm model; có thể ngắt Internet.
+3. Dùng Edge hoặc Chrome và cho phép camera, micro khi trình duyệt hỏi.
+4. Đăng ký danh tính thí sinh trước, rồi bắt đầu phiên thi trên dashboard.
+   Có thể chỉnh Cảnh báo nhổm dậy sau (giây), từ 1 đến 300, rồi bấm Áp dụng.
+   Đổi ngưỡng sẽ đếm lại từ đầu; cấu hình được giữ sau khi mở ứng dụng lại.
+5. Khi kết thúc, bấm Kết thúc phiên. Để thoát server, dùng Dừng và thoát
+   hoặc đóng cửa sổ launcher. Chỉ đóng tab trình duyệt chưa dừng server.
+
+MÔI TRƯỜNG
+Windows 11 x64 là nền tảng kiểm thử chính; Windows ARM/x86 không hỗ trợ.
+Mục tiêu 1–3 người, CPU và RAM 8 GB trở lên; hiệu năng phụ thuộc máy.
+Cần trình duyệt Edge/Chrome cài sẵn và camera/micro hoạt động trong Windows.
+Nếu log báo lỗi DLL/MSVCP140/VCRUNTIME, chạy prerequisites/vc_redist.x64.exe
+(gói Microsoft Visual C++ Redistributable) rồi mở ứng dụng lại. Có thể cần
+quyền quản trị để cài prerequisite này; ứng dụng bình thường không cần.
+Launcher dùng .NET Framework 4.8 của Windows; nếu hệ điều hành thiếu thành
+phần này thì cần bổ sung trước. Không tắt antivirus hoặc SmartScreen để chạy.
+
+DỮ LIỆU VÀ LOG
+Dữ liệu mặc định: %LOCALAPPDATA%\ExamWatch\data
+Log: %LOCALAPPDATA%\ExamWatch\logs\server.log
+Nút Mở thư mục dữ liệu và Xem log trong launcher giúp truy cập nhanh.
+Gói không chứa danh tính hoặc lịch sử phiên từ máy phát triển.
+Thay thư mục ứng dụng khi cập nhật không xóa dữ liệu ở LOCALAPPDATA.
+Muốn sao lưu, dừng ứng dụng rồi sao chép toàn bộ thư mục dữ liệu.
+
+KẾT NỐI
+Chỉ mở trên máy cục bộ: http://127.0.0.1:<cổng>.
+Cổng mặc định 8000; nếu bận launcher tự chọn 8001–8099. Bấm Mở dashboard
+để vào đúng địa chỉ. Bấm ExamWatch.exe lần hai mở lại dashboard đang chạy.
+Không đưa địa chỉ này lên Internet/LAN. Không cần mở firewall cho mạng ngoài.
+
+SỰ CỐ
+- Không mở camera: kiểm tra Windows Settings > Privacy & security > Camera
+  và Microphone, cho phép desktop apps; kiểm tra quyền của trang trình duyệt.
+- Không thấy dashboard: chờ launcher báo Sẵn sàng, rồi bấm Mở dashboard.
+- Model thiếu/hỏng: giải nén lại bản ZIP đầy đủ; không di chuyển riêng EXE.
+- Nếu quá chậm, đóng các ứng dụng nặng khác và dùng camera cố định.
+- Launcher giữ server hoạt động cho tới khi bấm Dừng và thoát.
+
+GIỚI HẠN BẢN v1
+Kết quả cảm xúc, tư thế và STT cần giám thị kiểm tra bằng chứng trước khi
+đánh giá sự việc. Đây là bản demo offline. Xem QA_REPORT.txt để biết phạm vi
+kiểm thử thực tế; chưa khẳng định đã kiểm thử trên mọi cấu hình Windows.
+Model Zipformer nguyên mẫu, giấy phép CC-BY-NC-ND-4.0; xem licenses.
+Phần vẽ miệng có hai khóe miệng từ YuNet và một điểm giữa là trung điểm
+hình học hai khóe miệng; đây không phải model nhận dạng đường viền môi.

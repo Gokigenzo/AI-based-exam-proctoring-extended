@@ -1,13 +1,19 @@
-# Third-party notices
+# Third-party components
 
-The application integrates the following upstream work. Preserve upstream license files and notices when redistributing model/runtime artifacts. This list does not replace the license texts shipped in each package's `.dist-info/licenses` directory.
+Ứng dụng sử dụng các thư viện đóng gói; không cần giữ toàn bộ cây mã nguồn upstream.
+Giấy phép dependency vẫn nằm trong distribution tương ứng ở `.venv`.
 
-- TalkAI FER+ implementation: [repository](https://github.com/TalkAI/facial-emotion-recognition-gluon), MIT. Portions of preprocessing are adapted from its Microsoft FERPlus-derived `utils/image_utils.py`; retain their upstream notices.
-- VinAI PhoWhisper: [repository and license](https://github.com/VinAIResearch/PhoWhisper), BSD-3-Clause. Cite Le, Nguyen and Nguyen, *PhoWhisper: Automatic Speech Recognition for Vietnamese*, ICLR 2024 Tiny Papers, when publishing research results.
-- OpenCV / YuNet: [OpenCV Zoo](https://github.com/opencv/opencv_zoo/tree/main/models/face_detection_yunet). See model-specific license and OpenCV library license.
-- MediaPipe: [repository](https://github.com/google-ai-edge/mediapipe), Apache-2.0. Pose task weights are obtained from Google's official model registry.
-- Silero VAD: [repository](https://github.com/snakers4/silero-vad), MIT.
-- PyTorch, ONNX Runtime, NumPy, SciPy, FastAPI, SQLAlchemy, Next.js, React and Supabase SDK retain the license files installed with their packages.
-- FFmpeg binary: supplied by `imageio-ffmpeg`; the libx264-enabled binary may have GPL obligations. Preserve the actual binary's license/build information and corresponding-source offer when distributing it. Run the bundled executable with `-L` and `-buildconf` and retain those outputs in the distribution.
+| Thành phần | Nguồn | Giấy phép / ghi chú |
+| --- | --- | --- |
+| DeepFace Emotion ONNX, thứ tự nhãn và tiền xử lý | https://github.com/serengil/deepface | MIT; xem `licenses/deepface-MIT.txt`. Model: https://huggingface.co/serengil/deepface |
+| YuNet / SFace | https://github.com/opencv/opencv_zoo | Giữ giấy phép riêng từng model trong `licenses/` khi chuẩn bị |
+| MediaPipe Pose Landmarker Lite | https://github.com/google-ai-edge/mediapipe | Apache-2.0; xem `licenses/mediapipe-Apache-2.0.txt` |
+| Faster-Whisper | https://github.com/SYSTRAN/faster-whisper | MIT; xem `licenses/faster-whisper-MIT.txt` |
+| Whisper tiny weights | https://huggingface.co/Systran/faster-whisper-tiny | Model chuyển sang CTranslate2 từ OpenAI Whisper; MIT |
+| Zipformer 30M (mặc định) | https://huggingface.co/hynt/Zipformer-30M-RNNT-6000h | CC-BY-NC-ND-4.0; bản nguyên mẫu dùng cho demo phi thương mại; không bao gồm weights trong Git |
+| Sherpa-ONNX | https://github.com/k2-fsa/sherpa-onnx | Apache-2.0; giữ giấy phép trong distribution |
+| PhoWhisper-base (tùy chọn) | https://huggingface.co/vinai/PhoWhisper-base | BSD-3-Clause; xem `licenses/phowhisper-BSD-3-Clause.txt` |
 
-Legacy MXNet is used only for model conversion and is not required by the ONNX capture runtime.
+Model mặc định đang chạy là Zipformer nguyên mẫu. Các script và tài liệu thử
+fine-tune được giữ để tham khảo; không đưa checkpoint thử nghiệm vào Git.
+Nguồn và hash cụ thể được ghi trong manifest/source.json lúc chuẩn bị model.

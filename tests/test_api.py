@@ -1,127 +1,235 @@
-from datetime import datetime, timedelta, timezone
-import hashlib
-import re
-from uuid import uuid4
+import base64
+import threading
+import time
+import cv2
+import numpy as np
+import pytest
+from fastapi.testclient import TestClient
+from examwatch.config import Settings
+from examwatch.main import create_app
+from examwatch.runtime import Runtime
+from examwatch.tracking import Track
 
-from examwatch.api.models import Room, Member, Device, Asset, Speech, Review, Event
-from examwatch.api.security import DEMO_USER, digest
-from examwatch.api.cleanup import cleanup
-
-
-def post_event(api, event):
-    response = api.post("/v1/events:batch", headers=api.device_headers, json={"items": [event]})
-    assert response.status_code == 200, response.text
-
-
-def test_auth_role_and_idempotency(api, event):
-    assert api.get("/v1/rooms").status_code == 401
-    assert api.post("/v1/events:batch", headers=api.user_headers, json={"items": [event]}).status_code == 403
-    post_event(api, event)
-    post_event(api, event)
-    result = api.get(f"/v1/events?session_id={api.session_id}", headers=api.user_headers).json()
-    assert len(result["items"]) == 1
-    event["details"] = {"changed": True}
-    assert api.post("/v1/events:batch", headers=api.device_headers, json={"items": [event]}).status_code == 409
+OWNER = 'test-browser-123'
 
 
-def test_cross_room_and_revocation(api, event):
-    room, other_device = str(uuid4()), str(uuid4())
-    with api.app.state.factory() as db:
-        db.add(Room(id=room, name="Other room"))
-        db.flush()
-        db.add(Device(id=other_device, room_id=room, name="Other", token_hash=digest("other-device")))
-        db.commit()
-    assert api.get(f"/v1/devices?room_id={room}", headers=api.user_headers).status_code == 403
-    assert api.post("/v1/events:batch", headers={"Authorization": "Bearer other-device"}, json={"items": [event]}).status_code == 403
-    assert api.delete(f"/v1/devices/{api.device_id}", headers=api.user_headers).status_code == 200
-    assert api.post("/v1/devices/heartbeat", headers=api.device_headers, json={}).status_code == 401
+class FakeVision:
+    def __init__(self, settings):
+        self.track = Track(1,[.1,.1,.2,.2],time.monotonic())
+        self.track.signal = dict(nose_y=.4,shoulder_y=.6,shoulder_x=.5,scale=.1,shoulder_width=.2)
+        self.track.posture = 'standing'
+        self.track.standing_rule.seconds = 0
+        self.track.emotion_rule.seconds = 0
+        self.track.emotion, self.track.emotion_score = 'sad',.9
+
+    def reset(self):
+        self.track.standing_rule.reset()
+        self.track.emotion_rule.reset()
+
+    def close(self):
+        pass
+
+    def process(self, frame, gallery):
+        return [self.track],False
+
+    def enrollment(self, frame):
+        return [1.,0.,0.]
 
 
-def test_batch_atomicity_and_source_scope(api, event):
-    bad = {**event, "id": str(uuid4()), "source_id": str(uuid4())}
-    response = api.post("/v1/events:batch", headers=api.device_headers, json={"items": [event, bad]})
-    assert response.status_code == 403
-    assert api.get(f"/v1/events?session_id={api.session_id}", headers=api.user_headers).json()["items"] == []
+class FakeSpeech:
+    def __init__(self, settings):
+        self.release = threading.Event()
+
+    def transcribe(self, samples, rate):
+        self.release.wait(3)
+        return [dict(start=0,end=.1,text='Nội dung thử nghiệm')]
 
 
-def test_timestamps_track_and_source_validation(api, event):
-    event["started_at"] = "2026-10-18T10:00:00"
-    assert api.post("/v1/events:batch", headers=api.device_headers, json={"items": [event]}).status_code == 422
-    event["started_at"] = api.timestamp
-    event["track_id"] = str(uuid4())
-    assert api.post("/v1/events:batch", headers=api.device_headers, json={"items": [event]}).status_code == 422
-    event["track_id"] = None
-    event["source_id"] = api.mic_id
-    assert api.post("/v1/events:batch", headers=api.device_headers, json={"items": [event]}).status_code == 400
+@pytest.fixture
+def client(tmp_path):
+    settings = Settings(data=tmp_path/'data',models=tmp_path/'models')
+    runtime = Runtime(settings,FakeVision,FakeSpeech)
+    with TestClient(create_app(settings,runtime)) as client:
+        yield client,runtime
+        if runtime.speech:
+            runtime.speech.release.set()
 
 
-def test_upload_checksum_signed_url_and_review(api, event):
-    post_event(api, event)
-    content = b"test evidence bytes"
-    asset = {"id": str(uuid4()), "session_id": api.session_id, "event_id": event["id"], "speech_id": None, "content_type": "image/jpeg", "size_bytes": len(content), "sha256": hashlib.sha256(content).hexdigest()}
-    info = api.post("/v1/assets/upload-url", headers=api.device_headers, json=asset).json()
-    assert api.get(f"/v1/assets/{asset['id']}/view-url", headers=api.user_headers).status_code == 409
-    assert api.put(info["url"], content=b"x" * len(content)).status_code == 409
-    assert api.put(info["url"], content=content).status_code == 200
-    assert api.post(f"/v1/assets/{asset['id']}/complete", headers=api.device_headers).status_code == 200
-    view = api.get(f"/v1/assets/{asset['id']}/view-url", headers=api.user_headers).json()
-    assert api.get(view["url"]).content == content
-    assert api.get(re.sub(r"expires=\d+", "expires=1", view["url"])).status_code == 403
-    assert api.put(view["url"], content=content).status_code == 403
-    assert api.post(f"/v1/events/{event['id']}/reviews", headers=api.user_headers, json={"verdict": "dismissed", "note": "Đã xem, không có vi phạm"}).status_code == 200
-    detail = api.get(f"/v1/events/{event['id']}", headers=api.user_headers).json()
-    assert detail["review_status"] == "dismissed" and len(detail["reviews"]) == 1
+def jpeg():
+    return cv2.imencode('.jpg', np.zeros((240,320,3),np.uint8))[1].tobytes()
 
 
-def test_cross_session_evidence_rejected(api, event):
-    post_event(api, event)
-    session = str(uuid4())
-    api.post("/v1/sessions", headers=api.device_headers, json={"id": session, "name": "Other", "started_at": api.timestamp})
-    response = api.post("/v1/assets/upload-url", headers=api.device_headers, json={"id": str(uuid4()), "session_id": session, "event_id": event["id"], "content_type": "image/jpeg", "size_bytes": 3, "sha256": "0" * 64})
-    assert response.status_code == 400
+def start(client):
+    response = client.post('/api/sessions',json={'title':'Phiên thử','owner':OWNER})
+    assert response.status_code == 201,response.text
+    return response.json()
 
 
-def test_speech_revision_immutable_raw_and_expiry(api):
-    speech = {"id": str(uuid4()), "session_id": api.session_id, "source_id": api.mic_id, "event_id": None, "started_at": api.timestamp, "ended_at": api.timestamp, "model_version": "PhoWhisper-test", "processing_status": "DONE", "transcript_raw": "Xin chào"}
-    assert api.post("/v1/speech-segments:batch", headers=api.device_headers, json={"items": [speech]}).status_code == 200
-    assert api.patch(f"/v1/speech-segments/{speech['id']}/review", headers=api.user_headers, json={"verdict": "confirmed", "correction": "Xin chào các em", "note": "Đã nghe"}).status_code == 200
-    row = api.get(f"/v1/speech-segments?session_id={api.session_id}", headers=api.user_headers).json()["items"][0]
-    assert row["transcript_raw"] == "Xin chào" and row["transcript_corrected"] == "Xin chào các em"
-    speech["transcript_raw"] = "Overwrite"
-    assert api.post("/v1/speech-segments:batch", headers=api.device_headers, json={"items": [speech]}).status_code == 409
-    with api.app.state.factory() as db:
-        db.get(Speech, speech["id"]).expires_at = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
-        db.commit()
-    result = api.get(f"/v1/speech-segments?session_id={api.session_id}", headers=api.user_headers).json()["items"][0]
-    assert result["expired"] and result["transcript_raw"] is None
-    cleanup(api.app.state.factory, api.app.state.storage)
-    with api.app.state.factory() as db:
-        assert db.get(Speech, speech["id"]).transcript_corrected is None
-        review = db.query(Review).filter_by(speech_id=speech["id"]).one()
-        assert review.correction is None and review.note == "[Nội dung đã hết hạn]"
+def test_configurable_standing_threshold_resets_active_timer_and_persists(client):
+    client,runtime=client
+    session=start(client)
+    track=runtime.vision.track
+    runtime.visible=[track]
+    track.standing_rule.update(True,100)
+    response=client.post('/api/settings/alerts',json={'standing_threshold_seconds':7})
+    assert response.status_code==200
+    assert runtime.status()['standing_threshold_seconds']==7
+    assert track.standing_rule.seconds==7 and track.standing_rule.since is None
+    for second in range(7):assert not track.standing_rule.update(True,200+second)
+    assert track.standing_rule.update(True,207)
+    # Posting the same threshold must not reset an ongoing timer.
+    client.post('/api/settings/alerts',json={'standing_threshold_seconds':7})
+    assert track.standing_rule.since==200
+    client.post('/api/sessions/stop',json={'session_id':session['id']})
+    other=Runtime(Settings(data=runtime.settings.data,models=runtime.settings.models),FakeVision,FakeSpeech)
+    assert other.settings.standing_seconds==7
+    other.close()
 
 
-def test_pagination_and_filters(api, event):
-    for i in range(4):
-        post_event(api, {**event, "id": str(uuid4()), "kind": "standing" if i % 2 else "side_lean"})
-    response = api.get(f"/v1/events?session_id={api.session_id}&limit=2", headers=api.user_headers).json()
-    assert len(response["items"]) == 2 and response["has_more"]
-    response = api.get(f"/v1/events?session_id={api.session_id}&kind=standing", headers=api.user_headers).json()
-    assert len(response["items"]) == 2
+@pytest.mark.parametrize('value',[0,301,2.5,True,'5'])
+def test_invalid_standing_threshold_rejected(client,value):
+    client,runtime=client
+    assert client.post('/api/settings/alerts',json={'standing_threshold_seconds':value}).status_code==422
+    assert runtime.settings.standing_seconds==5
 
 
-def test_cleanup_retries_failed_delete(api, event):
-    post_event(api, event)
-    with api.app.state.factory() as db:
-        row = Asset(id=str(uuid4()), session_id=api.session_id, event_id=event["id"], object_path="test/path.jpg", content_type="image/jpeg", size_bytes=1, sha256="0" * 64, status="ready", expires_at="2000-01-01T00:00:00+00:00")
-        identifier = row.id
-        db.add(row)
-        db.commit()
-    class Failing:
-        def delete(self, _):
-            raise OSError("offline")
-    assert cleanup(api.app.state.factory, Failing())["failed"] == 1
-    with api.app.state.factory() as db:
-        assert db.get(Asset, identifier).status == "ready"
-    assert cleanup(api.app.state.factory, api.app.state.storage)["deleted"] == 1
-    assert cleanup(api.app.state.factory, api.app.state.storage)["deleted"] == 0
+def test_registration_validation_and_duplicate_id(client):
+    client,runtime=client
+    image=base64.b64encode(jpeg()).decode()
+    body={'student_id':'TS001','name':'Nguyễn An','images':[image]*3}
+    assert client.post('/api/students',json=body).status_code==201
+    assert client.post('/api/students',json=body).status_code==409
+    rows=client.get('/api/students').json()
+    assert rows[0]['samples']==3 and 'embeddings' not in rows[0]
+    start(client)
+    assert client.delete('/api/students/TS001').status_code==400
+
+
+def test_alert_evidence_history_and_session_isolation(client):
+    client,runtime=client
+    row=start(client)
+    suffix=f"?owner={OWNER}&capture_id={row['capture_id']}"
+    assert client.post('/api/frames'+suffix,content=jpeg()).status_code==200
+    data=client.get('/api/sessions/'+row['id']).json()
+    assert {a['kind'] for a in data['alerts']}=={'standing','negative_emotion'}
+    for alert in data['alerts']:
+        if alert['kind'] == 'standing':
+            assert alert['evidence_type'] == 'video'
+            assert alert['evidence_status'] == 'pending'
+            runtime.clips.finish(alert['image'])
+        else:
+            assert client.get(f"/api/alerts/{alert['id']}/image").headers['content-type']=='image/jpeg'
+        assert alert['created_at'] and alert['offset_seconds']>=0
+    assert client.post('/api/frames'+suffix,content=jpeg()).status_code==200
+    assert len(client.get('/api/sessions/'+row['id']).json()['alerts'])==2
+    assert client.post('/api/calibrate',json={'owner':OWNER}).json()['calibrated']==1
+    assert client.post('/api/sessions/stop',json={'session_id':'stale-session'}).status_code==409
+    assert client.post('/api/sessions/stop',json={'session_id':row['id']}).status_code==200
+    assert client.post('/api/frames'+suffix,content=jpeg()).status_code==400
+    second=start(client)
+    assert client.post('/api/frames'+suffix,content=jpeg()).status_code==409
+    export=client.get(f"/api/sessions/{row['id']}/export").json()
+    assert len(export['alerts'])==2 and export['session']['ended_at']
+    assert not client.get('/api/sessions/'+second['id']).json()['alerts']
+
+
+def test_audio_finishes_into_original_session_after_stop(client):
+    client,runtime=client
+    first=start(client)
+    suffix=f"?owner={OWNER}&capture_id={first['capture_id']}&offset=0&rate=16000"
+    pcm=np.zeros(1600,dtype='<f4').tobytes()
+    assert client.post('/api/audio'+suffix,content=pcm).status_code==202
+    assert client.post('/api/audio'+suffix,content=pcm).status_code==400
+    client.post('/api/sessions/stop',json={'session_id':first['id']})
+    second=start(client)
+    runtime.speech.release.set()
+    runtime.audio.join()
+    data=client.get('/api/sessions/'+first['id']).json()
+    assert data['transcripts'][0]['text']=='Nội dung thử nghiệm'
+    assert not client.get('/api/sessions/'+second['id']).json()['transcripts']
+
+
+def test_standing_video_served_after_background_encoding(client):
+    client,runtime=client
+    row=start(client)
+    suffix=f"?owner={OWNER}&capture_id={row['capture_id']}"
+    client.post('/api/frames'+suffix,content=jpeg())
+    alert=next(a for a in runtime.store.records(row['id'],'alerts') if a['kind']=='standing')
+    assert client.get(f"/api/alerts/{alert['id']}/video").status_code == 404
+    runtime.clips.finish(alert['image'])
+    runtime.clips.pool.submit(lambda: None).result(timeout=10)
+    response=client.get(f"/api/alerts/{alert['id']}/video")
+    assert response.status_code == 200 and response.headers['content-type']=='video/webm'
+    assert response.content[:4] == b'\x1aE\xdf\xa3'
+    assert client.get(f"/api/alerts/{alert['id']}/image").status_code == 404
+    alert=next(a for a in runtime.store.records(row['id'],'alerts') if a['kind']=='standing')
+    assert alert['evidence_status']=='ready'
+
+
+def test_arm_and_lean_flags_create_distinct_video_alerts(client,monkeypatch):
+    client,runtime=client
+    row=start(client)
+    track=runtime.vision.track
+    track.posture='seated'
+    track.emotion='neutral'
+    readings={'left_arm':50.,'right_arm':0.,'lean':31.,'lean_source':'shoulders_hips'}
+    monkeypatch.setattr('examwatch.runtime.body_angles',lambda *args:readings.copy())
+    suffix=f"?owner={OWNER}&capture_id={row['capture_id']}"
+    result=client.post('/api/frames'+suffix,content=jpeg()).json()
+    assert set(result['tracks'][0]['pose_flags'])=={'left_arm','lean'}
+    assert runtime.store.records(row['id'],'alerts')==[]
+    # Advance only the two new rules; leave application clock/session untouched.
+    track.left_arm_rule.since-=1
+    track.lean_rule.since-=1
+    readings.update(left_arm=75.,lean=51.)
+    client.post('/api/frames'+suffix,content=jpeg())
+    alerts=runtime.store.records(row['id'],'alerts')
+    assert {a['kind'] for a in alerts}=={'arm_raise','body_lean'}
+    assert all(a['evidence_type']=='video' for a in alerts)
+    client.post('/api/frames'+suffix,content=jpeg())
+    assert len(runtime.store.records(row['id'],'alerts'))==2
+    client.post('/api/sessions/stop',json={'session_id':row['id']})
+    runtime.clips.pool.submit(lambda:None).result(timeout=10)
+    assert all(a['evidence_status']=='ready' for a in runtime.store.records(row['id'],'alerts'))
+
+
+def test_frame_processing_reuses_session_gallery_without_querying_database(client,monkeypatch):
+    client,runtime=client
+    runtime.store.add_student('fixture','Fixture',[[1.,0.,0.]])
+    row=start(client)
+    assert runtime.gallery[0]['id']=='fixture'
+    def forbidden(*args,**kwargs):
+        raise AssertionError('Per-frame gallery reload')
+    monkeypatch.setattr(runtime.store,'students',forbidden)
+    suffix=f"?owner={OWNER}&capture_id={row['capture_id']}"
+    assert client.post('/api/frames'+suffix,content=jpeg()).status_code==200
+    assert client.post('/api/frames'+suffix,content=jpeg()).status_code==200
+
+
+def test_input_validation_and_local_origin(client):
+    client,runtime=client
+    row=start(client)
+    suffix=f"?owner={OWNER}&capture_id={row['capture_id']}"
+    assert client.post('/api/frames'+suffix,content=b'not a jpeg').status_code==400
+    assert client.post('/api/audio'+suffix,content=b'bad').status_code==400
+    assert client.post('/api/audio'+suffix,content=np.array([np.nan],dtype='<f4').tobytes()).status_code==400
+    assert client.post('/api/calibrate',json={'owner':OWNER},headers={'Origin':'https://example.com'}).status_code==403
+    assert client.get('/api/sessions/nonexistent').status_code==404
+    assert client.get('/api/alerts/unknown/image').status_code==404
+
+
+def test_other_dashboard_can_stop_exact_session_but_cannot_capture(client):
+    client,runtime=client
+    first=start(client)
+    foreign=f"?owner=another-browser&capture_id={first['capture_id']}"
+    assert client.post('/api/frames'+foreign,content=jpeg()).status_code==409
+    assert client.post('/api/audio'+foreign,content=np.zeros(1600,dtype='<f4').tobytes()).status_code==409
+    # A second dashboard has no capture-owner token but can control this local session.
+    response=client.post('/api/sessions/stop',json={'session_id':first['id']})
+    assert response.status_code==200 and response.json()['ended_at']
+    second=start(client)
+    # Repeated/stale clicks cannot end the new session, even from the original owner.
+    assert client.post('/api/sessions/stop',json={'session_id':first['id']}).status_code==200
+    assert runtime.session['id']==second['id']
+    assert client.post('/api/sessions/stop',json={'session_id':'unknown-id'}).status_code==409
+    assert runtime.session['id']==second['id']
